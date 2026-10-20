@@ -2,7 +2,7 @@
 
 A **50 W solar charge controller** that uses a synchronous buck converter and the **Perturb & Observe (P&O)** algorithm to keep a solar panel at its maximum power point while charging a 12 V lead-acid battery in bulk, absorb and float stages.
 
-**Live demo:** https://mahendr99ar.github.io/solar-mppt-charge-controller/ (drag the sunlight and temperature sliders and watch the tracker follow the peak)
+**Live demo:** [https://mahendr99ar.github.io/solar-mppt-charge-controller/](https://mahendr99ar.github.io/solar-mppt-charge-controller/) (drag the sunlight and temperature sliders and watch the tracker follow the peak)
 
 ![status](https://img.shields.io/badge/hardware-build%20in%20progress-orange)
 ![sim](https://img.shields.io/badge/simulation-99.5%25%20tracking-brightgreen)
