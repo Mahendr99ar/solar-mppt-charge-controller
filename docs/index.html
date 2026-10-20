@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solar MPPT Charge Controller</title>
+<meta name="description" content="A 50 W solar MPPT charge controller with a live Perturb and Observe tracker you can play with in the browser.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,400;0,500;0,600;1,400&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cell: #1E3A5F;        /* silicon cell blue */
+    --cell-line: #2F5C8A;   /* busbar / grid lines */
+    --sky: #F5F8FC;         /* page */
+    --paper: #FFFFFF;
+    --sun: #F2A900;         /* P-V curve, highlights */
+    --sun-deep: #B87F00;
+    --direct: #C2410C;      /* direct battery connection */
+    --ink: #142235;
+    --muted: #51627A;
+    --rule: #D6DFEA;
+    --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+    --body: "Barlow", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--sky);
+    color: var(--ink);
+    font: 400 17px/1.6 var(--body);
+  }
+  a { color: var(--cell-line); text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible, input:focus-visible {
+    outline: 3px solid var(--sun); outline-offset: 2px;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- Hero: the tracker is the hero ---------- */
+  .hero {
+    background:
+      linear-gradient(var(--cell-line) 1px, transparent 1px) 0 0 / 100% 56px,
+      linear-gradient(90deg, rgba(47,92,138,.55) 1px, transparent 1px) 0 0 / 56px 100%,
+      var(--cell);
+    color: #EAF1F9;
+    padding: 56px 0 64px;
+  }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 48px;
+    align-items: center;
+  }
+  h1 {
+    font: 700 clamp(44px, 6vw, 76px)/0.95 var(--display);
+    letter-spacing: -0.01em;
+    margin: 0 0 20px;
+  }
+  .lede { font-size: 19px; color: #C9D7E8; max-width: 34ch; margin: 0 0 24px; }
+  .credit { color: #9FB4CD; font-size: 15px; margin: 0 0 20px; }
+  .credit strong { color: #EAF1F9; font-weight: 600; }
+  .btn {
+    display: inline-block;
+    font: 600 16px/1 var(--body);
+    padding: 12px 18px;
+    border-radius: 6px;
+    border: 1.5px solid var(--sun);
+    background: var(--sun);
+    color: var(--cell);
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .btn.ghost { background: transparent; color: var(--sun); }
+
+  .scope {
+    background: #0F2742;
+    border: 1px solid var(--cell-line);
+    border-radius: 10px;
+    padding: 18px 18px 14px;
+  }
+  .scope canvas { width: 100%; height: 320px; display: block; }
+  .readout {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px 16px;
+    margin: 12px 0 14px;
+    font-size: 14px;
+    color: #9FB4CD;
+  }
+  .readout b {
+    display: block;
+    font: 600 26px/1.1 var(--display);
+    color: #FFFFFF;
+    font-variant-numeric: tabular-nums;
+  }
+  .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; }
+  .controls label { font-size: 14px; color: #C9D7E8; display: block; }
+  .controls output { color: #FFFFFF; font-weight: 600; float: right; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--sun); }
+  .scope-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; align-items: center; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: #9FB4CD; margin-left: auto; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+
+  /* ---------- Body sections ---------- */
+  main section { padding: 64px 0 8px; }
+  .col { max-width: 760px; }
+  h2 {
+    font: 600 36px/1.1 var(--display);
+    margin: 0 0 16px;
+    color: var(--cell);
+  }
+  h3 { font: 600 22px/1.2 var(--display); margin: 28px 0 8px; color: var(--cell); }
+  p { margin: 0 0 16px; }
+  .muted { color: var(--muted); }
+
+  .results {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border-top: 3px solid var(--cell);
+    margin-top: 8px;
+  }
+  .results div { padding: 18px 20px 18px 0; }
+  .results b {
+    display: block;
+    font: 700 52px/1 var(--display);
+    color: var(--cell);
+    font-variant-numeric: tabular-nums;
+  }
+  .results span { color: var(--muted); font-size: 15px; display: block; max-width: 26ch; margin-top: 6px; }
+
+  figure { margin: 24px 0 0; }
+  figure img { width: 100%; height: auto; background: #fff; border: 1px solid var(--rule); border-radius: 8px; }
+  figcaption { color: var(--muted); font-size: 15px; margin-top: 10px; max-width: 70ch; }
+
+  .diagram { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 16px; margin-top: 8px; }
+  .diagram svg { width: 100%; height: auto; display: block; }
+
+  ol.steps { padding-left: 22px; margin: 8px 0 0; }
+  ol.steps li { margin-bottom: 8px; padding-left: 4px; }
+  ol.steps li::marker { font: 600 18px var(--display); color: var(--sun-deep); }
+
+  table { border-collapse: collapse; width: 100%; font-size: 16px; margin-top: 8px; }
+  th, td { text-align: left; padding: 10px 12px 10px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-weight: 600; color: var(--cell); }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
+
+  .stages { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin-top: 12px; }
+  .stage { padding: 16px 18px; border-left: 4px solid var(--sun); background: var(--paper); }
+  .stage + .stage { border-left-color: var(--cell-line); }
+  .stage:last-child { border-left-color: var(--cell); }
+  .stage h3 { margin-top: 0; }
+  .stage p { font-size: 15px; margin: 0; color: var(--muted); }
+
+  .status {
+    border-left: 4px solid var(--sun);
+    background: #FFF8E5;
+    padding: 14px 18px;
+    margin-top: 20px;
+    font-size: 16px;
+  }
+
+  footer { margin-top: 72px; padding: 32px 0 48px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 15px; }
+
+  @media (max-width: 900px) {
+    .hero-grid { grid-template-columns: 1fr; gap: 32px; }
+    .lede { max-width: none; }
+  }
+  @media (max-width: 600px) {
+    body { font-size: 16px; }
+    .wrap { padding: 0 16px; }
+    .hero { padding: 40px 0 44px; }
+    .scope canvas { height: 240px; }
+    .readout { grid-template-columns: repeat(2, 1fr); }
+    .controls { grid-template-columns: 1fr; }
+    .results, .stages { grid-template-columns: 1fr; }
+    .results b { font-size: 44px; }
+    .legend { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <h1>Solar MPPT charge controller</h1>
+      <p class="lede">A 50 W buck converter that keeps a solar panel at its maximum power point while it charges a 12 V battery.</p>
+      <p class="credit">Built by <strong>Mahendra Meena</strong> and <strong>Kiran Meena</strong>, B.Tech EEE, IIIT Gwalior.</p>
+      <a class="btn" href="https://github.com/Mahendr99ar/solar-mppt-charge-controller">View the code on GitHub</a>
+    </div>
+
+    <div class="scope" aria-label="Live MPPT tracker">
+      <canvas id="pv" role="img" aria-label="Panel power versus voltage curve with the tracker's operating point"></canvas>
+      <div class="readout" aria-live="polite">
+        <div>Panel voltage<b id="r-v">0.0 V</b></div>
+        <div>Panel power<b id="r-p">0.0 W</b></div>
+        <div>Duty cycle<b id="r-d">0 %</b></div>
+        <div>Of maximum<b id="r-e">0 %</b></div>
+      </div>
+      <div class="controls">
+        <label for="g">Sunlight <output id="g-out" for="g">1000 W/m²</output>
+          <input id="g" type="range" min="100" max="1000" step="10" value="1000"></label>
+        <label for="t">Panel temperature <output id="t-out" for="t">25 °C</output>
+          <input id="t" type="range" min="10" max="65" step="1" value="25"></label>
+      </div>
+      <div class="scope-actions">
+        <button class="btn" id="run" type="button">Pause tracking</button>
+        <button class="btn ghost" id="restart" type="button">Restart from 14 V</button>
+        <div class="legend">
+          <span><i style="background:var(--sun)"></i>Panel P-V curve</span>
+          <span><i style="background:#FFFFFF"></i>MPPT operating point</span>
+          <span><i style="background:#F2764A"></i>Direct to battery</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section>
+    <div class="col">
+      <h2>What the simulation shows</h2>
+      <p>We ran the tracker on a model of a 50 W panel for 60 seconds of changing weather: full sun, a passing cloud, then partial recovery while the panel warmed from 25 °C to 40 °C.</p>
+    </div>
+    <div class="results">
+      <div><b>99.5%</b><span>of the ideal energy captured by the tracker</span></div>
+      <div><b>+20.3%</b><span>more energy than wiring the panel straight to the battery</span></div>
+      <div><b>1.3 s</b><span>to lock on after starting far from the peak</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="col">
+      <h2>How it works</h2>
+      <p>A solar panel gives its most power at one voltage, about 17.6 V for this panel in full sun. A 12 V battery would drag the panel down to around 12.8 V and waste roughly a fifth of the power. The buck converter sits between them, so the panel can stay at its best voltage while the battery gets its own.</p>
+    </div>
+    <div class="diagram">
+      <svg viewBox="0 0 960 250" role="img" aria-label="Block diagram: solar panel to synchronous buck converter to 12 V battery, with an Arduino Nano reading voltage and current and setting the PWM duty cycle">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1E3A5F"/></marker>
+        </defs>
+        <g font-family="Barlow, sans-serif" font-size="15" fill="#142235">
+          <rect x="20" y="30" width="170" height="90" rx="6" fill="#1E3A5F"/>
+          <g stroke="#2F5C8A" stroke-width="1">
+            <line x1="20" y1="60" x2="190" y2="60"/><line x1="20" y1="90" x2="190" y2="90"/>
+            <line x1="62" y1="30" x2="62" y2="120"/><line x1="105" y1="30" x2="105" y2="120"/><line x1="148" y1="30" x2="148" y2="120"/>
+          </g>
+          <text x="105" y="145" text-anchor="middle" font-weight="600">50 W solar panel</text>
+          <text x="105" y="165" text-anchor="middle" fill="#51627A">15–22 V</text>
+
+          <line x1="190" y1="75" x2="340" y2="75" stroke="#1E3A5F" stroke-width="2" marker-end="url(#ar)"/>
+          <rect x="345" y="30" width="250" height="90" rx="6" fill="#fff" stroke="#1E3A5F" stroke-width="2"/>
+          <text x="470" y="62" text-anchor="middle" font-weight="600">Synchronous buck converter</text>
+          <text x="470" y="84" text-anchor="middle" fill="#51627A">2 × IRFZ44N, IR2104, 220 µH</text>
+          <text x="470" y="104" text-anchor="middle" fill="#51627A">31.25 kHz switching</text>
+
+          <line x1="595" y1="75" x2="745" y2="75" stroke="#1E3A5F" stroke-width="2" marker-end="url(#ar)"/>
+          <rect x="750" y="38" width="170" height="74" rx="6" fill="#fff" stroke="#1E3A5F" stroke-width="2"/>
+          <rect x="920" y="62" width="10" height="26" fill="#1E3A5F"/>
+          <text x="835" y="70" text-anchor="middle" font-weight="600">12 V battery</text>
+          <text x="835" y="92" text-anchor="middle" fill="#51627A">charged to 14.4 V</text>
+
+          <rect x="345" y="175" width="250" height="56" rx="6" fill="#FFF8E5" stroke="#B87F00" stroke-width="2"/>
+          <text x="470" y="200" text-anchor="middle" font-weight="600">Arduino Nano</text>
+          <text x="470" y="220" text-anchor="middle" fill="#51627A">P&amp;O MPPT + charging stages</text>
+
+          <path d="M265 75 V203 H340" fill="none" stroke="#B87F00" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+          <text x="275" y="190" fill="#B87F00" font-size="13">V, I sensed</text>
+          <path d="M670 75 V203 H600" fill="none" stroke="#B87F00" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+          <text x="608" y="190" fill="#B87F00" font-size="13">battery V</text>
+          <line x1="470" y1="175" x2="470" y2="125" stroke="#B87F00" stroke-width="2" marker-end="url(#ar)"/>
+          <text x="478" y="155" fill="#B87F00" font-size="13">PWM duty</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="col">
+      <h3>Perturb and Observe, every 50 ms</h3>
+      <ol class="steps">
+        <li>Measure panel voltage and current, and work out the power.</li>
+        <li>Nudge the PWM duty cycle by 0.5 %. In a buck converter, panel voltage ≈ battery voltage ÷ duty, so this moves the panel voltage.</li>
+        <li>If power went up, keep nudging the same way. If it went down, turn around.</li>
+        <li>Repeat. The operating point climbs the curve and then hovers around the peak.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <div class="col">
+      <h2>Tracking under changing sunlight</h2>
+    </div>
+    <figure>
+      <img src="assets/mppt_tracking.png" alt="Three plots over 60 seconds: irradiance, panel power for ideal MPP, P&O MPPT and direct connection, and panel voltage" loading="lazy" width="1170" height="1040">
+      <figcaption>The blue P&amp;O line sits on top of the ideal dashed line almost everywhere. Around 36 s, while the cloud clears, the voltage swings: power is rising because of the sun, not because of the tracker's last step, so it briefly walks the wrong way. This is a known weakness of P&amp;O, and it recovers as soon as the light settles.</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/pv_curves.png" alt="P-V curves for three irradiance and temperature conditions, each with its maximum power point marked, and a dotted line at battery voltage" loading="lazy" width="1040" height="585">
+      <figcaption>The peak moves with sunlight and temperature, so a fixed voltage can't stay on it. The dotted line is where a panel wired straight to the battery would sit.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <div class="col">
+      <h2>Design values</h2>
+      <p class="muted">Worked out in <code>design/buck_design.py</code>.</p>
+      <table>
+        <thead><tr><th>Part</th><th>Value</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>Switching frequency</td><td class="num">31.25 kHz</td><td>Arduino Timer1, 16 MHz ÷ 512, above hearing range</td></tr>
+          <tr><td>Duty cycle at the peak</td><td class="num">0.78</td><td>13.8 V ÷ 17.6 V</td></tr>
+          <tr><td>Inductor</td><td class="num">220 µH, 5.2 A</td><td>Keeps ripple near 30 % of the 3.6 A output at 22 V input</td></tr>
+          <tr><td>Output capacitor</td><td class="num">100 µF, 25 V</td><td>Under 50 mV ripple on the battery side</td></tr>
+          <tr><td>Input capacitor</td><td class="num">470 µF, 35 V</td><td>Carries 1.5 A RMS pulsed current</td></tr>
+          <tr><td>Switches</td><td class="num">2 × IRFZ44N</td><td>55 V, 17.5 mΩ, driven by an IR2104 half-bridge driver</td></tr>
+          <tr><td>Night blocking diode</td><td class="num">MBR1045</td><td>Stops the battery draining into the panel after dark</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="col">
+      <h2>Charging stages</h2>
+      <p>Lead-acid batteries need gentler charging as they fill up, so the firmware switches mode on battery voltage and current.</p>
+    </div>
+    <div class="stages">
+      <div class="stage"><h3>Bulk</h3><p>MPPT runs and every available watt goes into the battery until it reaches 14.4 V.</p></div>
+      <div class="stage"><h3>Absorb</h3><p>Duty cycle is trimmed to hold 14.4 V while the charging current tapers off.</p></div>
+      <div class="stage"><h3>Float</h3><p>Below 0.3 A, the target drops to 13.8 V to keep the battery topped up without gassing.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="col">
+      <h2>Hardware</h2>
+      <table>
+        <thead><tr><th>Part</th><th>Job</th></tr></thead>
+        <tbody>
+          <tr><td>Arduino Nano</td><td>MPPT, charging stages, PWM, LCD</td></tr>
+          <tr><td>IR2104 + 2 × IRFZ44N</td><td>Synchronous buck power stage</td></tr>
+          <tr><td>ACS712-05B</td><td>Panel current sensing</td></tr>
+          <tr><td>47 kΩ / 10 kΩ dividers</td><td>Panel and battery voltage sensing</td></tr>
+          <tr><td>16×2 I2C LCD</td><td>Shows panel volts, watts, battery volts and stage</td></tr>
+        </tbody>
+      </table>
+      <p class="status">The design, simulation and firmware are done. The hardware build is in progress, and bench measurements will be added to the repository once it is tested.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    Mahendra Meena (<a href="https://github.com/Mahendr99ar">@Mahendr99ar</a>) and Kiran Meena (<a href="https://github.com/Kirann260">@Kirann260</a>). Source code, simulation and firmware on <a href="https://github.com/Mahendr99ar/solar-mppt-charge-controller">GitHub</a>, MIT licence.
+  </div>
+</footer>
+
+<script>
+/* ---- Single-diode panel model (same as model/pv_model.py) ---- */
+const PV = { VOC: 21.6, ISC: 3.10, NS: 36, N: 1.3, RS: 0.25, RSH: 250, KI: 0.0006, KV: -0.0033 };
+const VT = t => 1.380649e-23 * (t + 273.15) / 1.602176634e-19;
+
+function params(g, t) {
+  const gr = g / 1000, dt = t - 25;
+  const iph = PV.ISC * gr * (1 + PV.KI * dt);
+  const a = PV.NS * PV.N * VT(t);
+  const voc = PV.VOC * (1 + PV.KV * dt) + a * Math.log(Math.max(gr, 1e-6));
+  return { iph, a, i0: iph / (Math.exp(voc / a) - 1), voc };
+}
+function current(v, p) {
+  let i = p.iph;
+  for (let k = 0; k < 40; k++) {
+    const e = Math.exp((v + i * PV.RS) / p.a);
+    const f = p.iph - p.i0 * (e - 1) - (v + i * PV.RS) / PV.RSH - i;
+    const df = -p.i0 * e * PV.RS / p.a - PV.RS / PV.RSH - 1;
+    const s = f / df; i -= s;
+    if (Math.abs(s) < 1e-9) break;
+  }
+  return Math.max(i, 0);
+}
+function mpp(p) {
+  let lo = 0, hi = PV.VOC * 1.15; const gr = (Math.sqrt(5) - 1) / 2;
+  for (let k = 0; k < 60; k++) {
+    const m1 = hi - gr * (hi - lo), m2 = lo + gr * (hi - lo);
+    if (m1 * current(m1, p) > m2 * current(m2, p)) hi = m2; else lo = m1;
+  }
+  const v = (lo + hi) / 2; return { v, p: v * current(v, p) };
+}
+
+/* ---- Tracker state (same P&O as the firmware) ---- */
+const VBAT = 12.8, STEP = 0.005, DMIN = 0.40, DMAX = 0.95;
+let d, dir, pPrev, trail, running;
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function restart() { d = VBAT / 14; dir = -1; pPrev = 0; trail = []; }
+restart();
+
+const $ = id => document.getElementById(id);
+const gIn = $("g"), tIn = $("t"), canvas = $("pv"), ctx = canvas.getContext("2d");
+
+function step(p) {
+  const v = VBAT / d, pw = v * current(v, p);
+  if (pw < pPrev) dir = -dir;
+  d += dir * STEP;
+  if (d <= DMIN || d >= DMAX) { d = Math.min(Math.max(d, DMIN), DMAX); dir = -dir; }
+  pPrev = pw;
+}
+
+function draw() {
+  const g = +gIn.value, t = +tIn.value, p = params(g, t);
+  $("g-out").textContent = g + " W/m²";
+  $("t-out").textContent = t + " °C";
+
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  if (canvas.width !== W * dpr || canvas.height !== H * dpr) { canvas.width = W * dpr; canvas.height = H * dpr; }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  const L = 44, R = 12, T = 12, B = 34;
+  const vMax = 24, pMax = 60;
+  const x = v => L + (v / vMax) * (W - L - R);
+  const y = pw => H - B - (pw / pMax) * (H - T - B);
+
+  // grid + axes
+  ctx.font = "13px Barlow, sans-serif"; ctx.fillStyle = "#9FB4CD"; ctx.strokeStyle = "rgba(159,180,205,.18)"; ctx.lineWidth = 1;
+  for (let v = 0; v <= vMax; v += 4) { ctx.beginPath(); ctx.moveTo(x(v), T); ctx.lineTo(x(v), H - B); ctx.stroke(); ctx.textAlign = "center"; ctx.fillText(v + " V", x(v), H - B + 18); }
+  for (let pw = 0; pw <= pMax; pw += 20) { ctx.beginPath(); ctx.moveTo(L, y(pw)); ctx.lineTo(W - R, y(pw)); ctx.stroke(); ctx.textAlign = "right"; ctx.fillText(pw + " W", L - 6, y(pw) + 4); }
+
+  // P-V curve
+  ctx.strokeStyle = "#F2A900"; ctx.lineWidth = 2.5; ctx.beginPath();
+  for (let k = 0; k <= 160; k++) { const v = vMax * k / 160, pw = v * current(v, p); k ? ctx.lineTo(x(v), y(pw)) : ctx.moveTo(x(v), y(pw)); }
+  ctx.stroke();
+
+  // true MPP (hollow ring)
+  const m = mpp(p);
+  ctx.strokeStyle = "#F2A900"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x(m.v), y(m.p), 9, 0, 7); ctx.stroke();
+
+  // direct-to-battery point
+  const pd = VBAT * current(VBAT, p);
+  ctx.setLineDash([4, 4]); ctx.strokeStyle = "rgba(242,118,74,.7)"; ctx.beginPath(); ctx.moveTo(x(VBAT), T); ctx.lineTo(x(VBAT), H - B); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = "#F2764A"; ctx.beginPath(); ctx.arc(x(VBAT), y(pd), 6, 0, 7); ctx.fill();
+
+  // tracker trail + point
+  const v = VBAT / d, pw = v * current(v, p);
+  trail.push([v, pw]); if (trail.length > 40) trail.shift();
+  trail.forEach(([tv, tp], k) => { ctx.fillStyle = `rgba(255,255,255,${(k + 1) / trail.length * 0.35})`; ctx.beginPath(); ctx.arc(x(tv), y(tp), 3, 0, 7); ctx.fill(); });
+  ctx.fillStyle = "#FFFFFF"; ctx.beginPath(); ctx.arc(x(v), y(pw), 7, 0, 7); ctx.fill();
+
+  $("r-v").textContent = v.toFixed(1) + " V";
+  $("r-p").textContent = pw.toFixed(1) + " W";
+  $("r-d").textContent = Math.round(d * 100) + " %";
+  $("r-e").textContent = (m.p > 0 ? Math.min(100, pw / m.p * 100) : 0).toFixed(0) + " %";
+  return p;
+}
+
+let timer = null;
+function setRunning(on) {
+  running = on;
+  $("run").textContent = on ? "Pause tracking" : "Start tracking";
+  clearInterval(timer);
+  if (on) timer = setInterval(() => { step(params(+gIn.value, +tIn.value)); draw(); }, 60);
+}
+
+$("run").addEventListener("click", () => setRunning(!running));
+$("restart").addEventListener("click", () => { restart(); draw(); if (!running) setRunning(true); });
+gIn.addEventListener("input", draw);
+tIn.addEventListener("input", draw);
+window.addEventListener("resize", draw);
+
+draw();
+setRunning(!reduceMotion);
+</script>
+</body>
+</html>

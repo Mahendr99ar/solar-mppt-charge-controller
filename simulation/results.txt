@@ -1,0 +1,7 @@
+Simulated time                  : 60 s, control period 50 ms
+Energy, ideal MPP               : 2042.8 J
+Energy, P&O MPPT                : 2031.9 J
+Energy, direct battery connect  : 1689.1 J
+MPPT tracking efficiency        : 99.5 %
+Extra energy vs direct connect  : +20.3 %
+Start-up settling (to 98 %)     : 1.30 s
