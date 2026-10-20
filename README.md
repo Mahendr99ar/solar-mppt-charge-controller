@@ -111,5 +111,5 @@ docs/                                  project website (GitHub Pages)
 ```
 
 ## Contributors
-- [Mahendra Meena](https://github.com/Mahendr99ar)
 - [Kiran Meena](https://github.com/Kirann260)
+- [Mahendra Meena](https://github.com/Mahendr99ar)
